@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FinControl Pro</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -21,6 +22,32 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* ── CONFIG / AUTH SCREENS ── */
+#screen-config,#screen-auth{display:none;position:fixed;inset:0;z-index:900;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(59,130,246,0.12),var(--bg));}
+#screen-config.show,#screen-auth.show{display:flex;}
+.auth-card{width:420px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rl);padding:32px;}
+.auth-logo-tag{font-size:9px;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;font-family:'IBM Plex Mono',monospace;margin-bottom:4px;}
+.auth-title{font-size:20px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.auth-sub{font-size:12px;color:var(--text2);margin-bottom:22px;line-height:1.5;}
+.auth-tabs{display:flex;gap:2px;background:var(--bg3);border-radius:var(--r);padding:3px;margin-bottom:20px;}
+.auth-tab{flex:1;padding:6px;text-align:center;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text2);transition:all .12s;}
+.auth-tab.active{background:var(--bg4);color:var(--text);border:1px solid var(--border);}
+.auth-alert{border-radius:var(--r);padding:9px 12px;font-size:12px;margin-bottom:12px;display:none;}
+.auth-err{background:var(--red-bg);border:1px solid var(--red-bd);color:var(--red);}
+.auth-ok{background:var(--green-bg);border:1px solid var(--green-bd);color:var(--green);}
+.cfg-step{display:flex;gap:11px;align-items:flex-start;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;}
+.cfg-num{width:24px;height:24px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;font-family:'IBM Plex Mono',monospace;}
+.cfg-text{font-size:12px;color:var(--text2);line-height:1.6;}
+.cfg-text b{color:var(--text);}
+.cfg-text a{color:var(--blue);text-decoration:none;}
+.cfg-text code{background:var(--bg4);padding:1px 5px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber);}
+.sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:'IBM Plex Mono',monospace;}
+.sync-dot{width:6px;height:6px;border-radius:50%;}
+.sync-dot.ok{background:var(--green);}
+.sync-dot.err{background:var(--red);}
+.sync-dot.spin-sync{background:var(--amber);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
 /* ── SIDEBAR ── */
 .sidebar{width:210px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;}
@@ -196,6 +223,61 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 <body>
 
 <!-- ════ SIDEBAR ════ -->
+<!-- ════ CONFIG SCREEN ════ -->
+<div id="screen-config">
+  <div class="auth-card">
+    <div class="auth-logo-tag">FinControl Pro</div>
+    <div class="auth-title">Configuração inicial</div>
+    <div class="auth-sub">Conecte ao seu projeto Supabase para ativar o sistema multi-usuário com banco de dados na nuvem.</div>
+    <div class="cfg-step"><div class="cfg-num">1</div><div class="cfg-text">Acesse <a href="https://supabase.com" target="_blank">supabase.com</a>, crie uma conta grátis e clique em <b>New Project</b>. Aguarde ~2 min.</div></div>
+    <div class="cfg-step"><div class="cfg-num">2</div><div class="cfg-text">No painel do projeto vá em <b>SQL Editor</b> e execute o arquivo <code>fincontrol_pro_supabase.sql</code> gerado junto com este sistema.</div></div>
+    <div class="cfg-step"><div class="cfg-num">3</div><div class="cfg-text">Vá em <b>Settings → API</b>, copie a <b>Project URL</b> e a <b>anon public key</b> e cole abaixo.</div></div>
+    <div class="cfg-step"><div class="cfg-num">4</div><div class="cfg-text">Em <b>Authentication → Providers → Email</b> confirme que o provider está <b>habilitado</b>. Para testes desative "Confirm email" em Auth Settings.</div></div>
+    <div class="form-group" style="margin-top:14px"><label>Project URL</label><input type="url" id="cfg-url" placeholder="https://xyzxyz.supabase.co"></div>
+    <div class="form-group"><label>Anon Public Key</label><input type="text" id="cfg-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></div>
+    <div class="auth-alert auth-err" id="cfg-err"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="conectarSupabase()">Conectar ao Supabase →</button>
+    <p style="text-align:center;margin-top:12px;font-size:10px;color:var(--text3)">As credenciais ficam salvas no navegador. Não são enviadas a nenhum servidor externo.</p>
+  </div>
+</div>
+
+<!-- ════ AUTH SCREEN ════ -->
+<div id="screen-auth">
+  <div class="auth-card">
+    <div class="auth-logo-tag">FinControl Pro</div>
+    <div class="auth-title">Acesse sua conta</div>
+    <div class="auth-sub">Faça login ou crie uma nova conta para acessar o sistema.</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="authTab('login')">Entrar</div>
+      <div class="auth-tab" onclick="authTab('register')">Criar conta</div>
+    </div>
+    <div class="auth-alert auth-err" id="auth-err"></div>
+    <div class="auth-alert auth-ok"  id="auth-ok"></div>
+    <div id="form-login">
+      <div class="form-group"><label>Email</label><input type="email" id="l-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <div class="form-group"><label>Senha</label><input type="password" id="l-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <button class="btn btn-primary" style="width:100%" id="btn-login" onclick="fazerLogin()">Entrar</button>
+      <p style="text-align:center;margin-top:12px;font-size:11px"><span style="cursor:pointer;color:var(--blue)" onclick="authTab('forgot')">Esqueci minha senha</span></p>
+    </div>
+    <div id="form-register" style="display:none">
+      <div class="form-group"><label>Nome completo</label><input type="text" id="r-nome-auth" placeholder="João Silva"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="r-email-auth" placeholder="seu@email.com"></div>
+      <div class="form-group"><label>Senha (mín. 6 caracteres)</label><input type="password" id="r-senha-auth" placeholder="••••••••"></div>
+      <div class="form-group"><label>Confirmar senha</label><input type="password" id="r-senha2-auth" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerCadastro()"></div>
+      <button class="btn btn-primary" style="width:100%" id="btn-reg" onclick="fazerCadastro()">Criar conta</button>
+    </div>
+    <div id="form-forgot" style="display:none">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Informe seu email e enviaremos um link para redefinir a senha.</p>
+      <div class="form-group"><label>Email</label><input type="email" id="forgot-email" placeholder="seu@email.com"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="recuperarSenha()">Enviar link</button>
+      <p style="text-align:center;margin-top:12px;font-size:11px"><span style="cursor:pointer;color:var(--blue)" onclick="authTab('login')">← Voltar ao login</span></p>
+    </div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center">
+      <span style="font-size:10px;color:var(--text3);cursor:pointer" onclick="resetConfig()">⚙ Alterar configuração do Supabase</span>
+    </div>
+  </div>
+</div>
+
 <nav class="sidebar">
   <div class="sidebar-top">
     <div class="logo-tag">FinControl</div>
@@ -228,7 +310,14 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   <div class="sidebar-bottom">
     <div class="sb-user-name" id="sb-name">Usuário</div>
     <div class="sb-user-em" id="sb-email"></div>
-    <button class="btn btn-sm" style="width:100%;justify-content:center" onclick="exportarDados()">⬇ Exportar JSON</button>
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px" id="sync-badge">
+      <div class="sync-dot ok" id="sync-dot"></div>
+      <span style="font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace" id="sync-text">online</span>
+    </div>
+    <div style="display:flex;gap:5px;margin-bottom:6px">
+      <button class="btn btn-sm" style="flex:1;justify-content:center" onclick="exportarDados()">⬇ JSON</button>
+      <button class="btn btn-sm btn-red" style="flex:1;justify-content:center" onclick="fazerLogout()">⏻ Sair</button>
+    </div>
   </div>
 </nav>
 
@@ -675,22 +764,23 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   <div class="modal-actions"><button class="btn" onclick="closeModal('m-banco')">Cancelar</button><button class="btn btn-primary" onclick="salvarBanco()">Salvar</button></div>
 </div></div>
 
+
 <script>
 // ══════════════════════════════════════════════════════
-// STORAGE & CACHE
+// SUPABASE CLIENT
 // ══════════════════════════════════════════════════════
-const DB = {
-  get: k => JSON.parse(localStorage.getItem('fcp_'+k)||'[]'),
-  set: (k,v) => localStorage.setItem('fcp_'+k, JSON.stringify(v)),
-};
+const SB_URL_KEY = 'fcp_sb_url';
+const SB_KEY_KEY = 'fcp_sb_key';
+let sb = null;
+let currentUser = null;
+
+// ══════════════════════════════════════════════════════
+// CACHE — todos os dados em memória para render rápido
+// ══════════════════════════════════════════════════════
 let cache = {
-  bancos: DB.get('bancos'), planos: DB.get('planos'),
-  clientes: DB.get('clientes'), fornecedores: DB.get('fornecedores'),
-  receitas: DB.get('receitas'), despesas: DB.get('despesas'),
-  transferencias: DB.get('transferencias'),
-  importHist: DB.get('importHist'),
+  bancos:[], planos:[], clientes:[], fornecedores:[],
+  receitas:[], despesas:[], transferencias:[], importHist:[]
 };
-const save = k => DB.set(k, cache[k]);
 
 // ══════════════════════════════════════════════════════
 // HELPERS
@@ -710,10 +800,18 @@ function mkChart(id, cfg) {
 
 function toast(msg, type='ok') {
   const el=document.createElement('div');
-  el.className=`ti ti-${type}`;
+  el.className='ti ti-'+type;
   el.textContent=msg;
   document.getElementById('toast').appendChild(el);
   setTimeout(()=>el.remove(),3500);
+}
+
+function setSyncStatus(status, text) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-text');
+  if(!dot||!txt) return;
+  dot.className = 'sync-dot ' + (status==='ok'?'ok':status==='err'?'err':'spin-sync');
+  txt.textContent = text;
 }
 
 function openModal(id) {
@@ -733,7 +831,7 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 function fillSelect(id, items, placeholder) {
   const el=document.getElementById(id); if(!el)return;
   const cur=el.value;
-  el.innerHTML=placeholder?`<option value="">${placeholder}</option>`:'';
+  el.innerHTML=placeholder?'<option value="">'+placeholder+'</option>':'';
   items.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});
   if(cur) el.value=cur;
 }
@@ -752,11 +850,11 @@ function populateSelects() {
 
 function getSaldoBanco(nome) {
   const b=cache.bancos.find(x=>x.nome===nome); if(!b)return 0;
-  const si=parseFloat(b.saldo||0);
+  const si=parseFloat(b.saldo_inicial||0);
   const rec=cache.receitas.filter(r=>r.banco===nome).reduce((s,r)=>s+parseFloat(r.valor||0),0);
   const des=cache.despesas.filter(d=>d.banco===nome).reduce((s,d)=>s+parseFloat(d.valor||0),0);
-  const ts=cache.transferencias.filter(t=>t.saiu===nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
-  const te=cache.transferencias.filter(t=>t.entrou===nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+  const ts=cache.transferencias.filter(t=>t.banco_saiu===nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+  const te=cache.transferencias.filter(t=>t.banco_entrou===nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
   return si+rec-des-ts+te;
 }
 
@@ -775,8 +873,210 @@ function showPage(id) {
 }
 
 // ══════════════════════════════════════════════════════
-// DASHBOARD
+// SCREENS
 // ══════════════════════════════════════════════════════
+function showScreen(s) {
+  document.getElementById('screen-config').classList.toggle('show', s==='config');
+  document.getElementById('screen-auth').classList.toggle('show',   s==='auth');
+  document.querySelector('.sidebar').style.display = s==='app' ? 'flex' : 'none';
+  document.querySelector('.main').style.display    = s==='app' ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// SUPABASE INIT
+// ══════════════════════════════════════════════════════
+async function init() {
+  const url = localStorage.getItem(SB_URL_KEY);
+  const key = localStorage.getItem(SB_KEY_KEY);
+  if (!url || !key) { showScreen('config'); return; }
+  try {
+    sb = supabase.createClient(url, key);
+    sb.auth.onAuthStateChange((event, session) => {
+      if (session) { currentUser = session.user; bootApp(session.user); }
+      else { currentUser = null; showScreen('auth'); }
+    });
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) { currentUser = session.user; await bootApp(session.user); }
+    else showScreen('auth');
+  } catch(e) {
+    console.error(e);
+    showScreen('config');
+  }
+}
+
+async function conectarSupabase() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  const err = document.getElementById('cfg-err');
+  err.style.display='none';
+  if (!url || !key) { err.textContent='Preencha os dois campos.'; err.style.display='block'; return; }
+  if (!url.startsWith('https://')) { err.textContent='URL inválida. Deve começar com https://'; err.style.display='block'; return; }
+  localStorage.setItem(SB_URL_KEY, url);
+  localStorage.setItem(SB_KEY_KEY, key);
+  init();
+}
+
+function resetConfig() {
+  localStorage.removeItem(SB_URL_KEY);
+  localStorage.removeItem(SB_KEY_KEY);
+  sb = null; currentUser = null;
+  showScreen('config');
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════
+function authTab(t) {
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
+  document.getElementById('form-login').style.display    = t==='login'    ?'block':'none';
+  document.getElementById('form-register').style.display = t==='register' ?'block':'none';
+  document.getElementById('form-forgot').style.display   = t==='forgot'   ?'block':'none';
+  document.getElementById('auth-err').style.display='none';
+  document.getElementById('auth-ok').style.display='none';
+}
+
+function traduzirErro(msg) {
+  if (msg.includes('Invalid login'))       return 'Email ou senha incorretos.';
+  if (msg.includes('Email not confirmed')) return 'Confirme seu email antes de entrar.';
+  if (msg.includes('already registered')) return 'Este email já está cadastrado.';
+  if (msg.includes('Password should'))    return 'Senha deve ter pelo menos 6 caracteres.';
+  if (msg.includes('Unable to validate')) return 'Credenciais inválidas. Verifique a configuração do Supabase.';
+  return msg;
+}
+
+async function fazerLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const senha = document.getElementById('l-senha').value;
+  const err   = document.getElementById('auth-err');
+  const btn   = document.getElementById('btn-login');
+  err.style.display='none';
+  btn.disabled=true; btn.textContent='Entrando...';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+    if (error) { err.textContent=traduzirErro(error.message); err.style.display='block'; }
+  } catch(e) { err.textContent='Erro de conexão com o Supabase.'; err.style.display='block'; }
+  btn.disabled=false; btn.textContent='Entrar';
+}
+
+async function fazerCadastro() {
+  const nome  = document.getElementById('r-nome-auth').value.trim();
+  const email = document.getElementById('r-email-auth').value.trim();
+  const senha = document.getElementById('r-senha-auth').value;
+  const s2    = document.getElementById('r-senha2-auth').value;
+  const err   = document.getElementById('auth-err');
+  const ok    = document.getElementById('auth-ok');
+  err.style.display='none'; ok.style.display='none';
+  if (!nome)        { err.textContent='Informe seu nome.'; err.style.display='block'; return; }
+  if (senha !== s2) { err.textContent='As senhas não conferem.'; err.style.display='block'; return; }
+  if (senha.length < 6) { err.textContent='Senha deve ter pelo menos 6 caracteres.'; err.style.display='block'; return; }
+  const btn = document.getElementById('btn-reg');
+  btn.disabled=true; btn.textContent='Criando...';
+  try {
+    const { error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome } } });
+    if (error) { err.textContent=traduzirErro(error.message); err.style.display='block'; }
+    else { ok.textContent='Conta criada! Verifique seu email e depois faça login.'; ok.style.display='block'; authTab('login'); }
+  } catch(e) { err.textContent='Erro de conexão.'; err.style.display='block'; }
+  btn.disabled=false; btn.textContent='Criar conta';
+}
+
+async function recuperarSenha() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const err = document.getElementById('auth-err');
+  const ok  = document.getElementById('auth-ok');
+  err.style.display='none'; ok.style.display='none';
+  if (!email) { err.textContent='Informe seu email.'; err.style.display='block'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if (error) { err.textContent=traduzirErro(error.message); err.style.display='block'; }
+  else { ok.textContent='Link enviado! Verifique seu email.'; ok.style.display='block'; }
+}
+
+async function fazerLogout() {
+  if (!confirm('Deseja sair da sua conta?')) return;
+  setSyncStatus('spin-sync','saindo...');
+  await sb.auth.signOut();
+  cache = { bancos:[], planos:[], clientes:[], fornecedores:[], receitas:[], despesas:[], transferencias:[], importHist:[] };
+  currentUser = null;
+  showScreen('auth');
+}
+
+// ══════════════════════════════════════════════════════
+// BOOT APP — carrega dados e inicializa
+// ══════════════════════════════════════════════════════
+async function bootApp(user) {
+  showScreen('app');
+  const meta = user.user_metadata || {};
+  document.getElementById('sb-name').textContent  = meta.nome || meta.full_name || user.email.split('@')[0];
+  document.getElementById('sb-email').textContent = user.email;
+  document.getElementById('fr-mes').value   = mesAtual();
+  document.getElementById('fd-mes').value   = mesAtual();
+  document.getElementById('ft-mes').value   = mesAtual();
+  document.getElementById('rank-mes').value = mesAtual();
+  document.getElementById('mes-display').textContent = new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  setSyncStatus('spin-sync','carregando...');
+  await carregarTudo();
+  setSyncStatus('ok','online');
+  showPage('dashboard');
+  setPeriodoDRE('mes');
+}
+
+async function carregarTudo() {
+  const uid = currentUser.id;
+  try {
+    const [b,p,c,f,r,d,t,h] = await Promise.all([
+      sb.from('bancos').select('*').eq('user_id',uid).order('nome'),
+      sb.from('plano_contas').select('*').eq('user_id',uid).order('codigo'),
+      sb.from('clientes').select('*').eq('user_id',uid).order('nome'),
+      sb.from('fornecedores').select('*').eq('user_id',uid).order('nome'),
+      sb.from('receitas').select('*').eq('user_id',uid).order('data',{ascending:false}),
+      sb.from('despesas').select('*').eq('user_id',uid).order('data',{ascending:false}),
+      sb.from('transferencias').select('*').eq('user_id',uid).order('data',{ascending:false}),
+      sb.from('import_historico').select('*').eq('user_id',uid).order('criado_em',{ascending:false}),
+    ]);
+    cache.bancos         = b.data||[];
+    cache.planos         = p.data||[];
+    cache.clientes       = c.data||[];
+    cache.fornecedores   = f.data||[];
+    cache.receitas       = r.data||[];
+    cache.despesas       = d.data||[];
+    cache.transferencias = t.data||[];
+    cache.importHist     = h.data||[];
+    populateSelects();
+  } catch(e) {
+    setSyncStatus('err','erro de conexão');
+    toast('Erro ao carregar dados: '+e.message,'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// CRUD HELPERS — insert / update / delete com Supabase
+// ══════════════════════════════════════════════════════
+async function dbInsert(tabela, row, cacheKey) {
+  setSyncStatus('spin-sync','salvando...');
+  const { data, error } = await sb.from(tabela).insert({...row, user_id:currentUser.id}).select().single();
+  if (error) { setSyncStatus('err','erro'); toast('Erro: '+error.message,'err'); return null; }
+  cache[cacheKey].unshift(data);
+  setSyncStatus('ok','online');
+  return data;
+}
+
+async function dbUpdate(tabela, id, row, cacheKey) {
+  setSyncStatus('spin-sync','salvando...');
+  const { data, error } = await sb.from(tabela).update(row).eq('id',id).eq('user_id',currentUser.id).select().single();
+  if (error) { setSyncStatus('err','erro'); toast('Erro: '+error.message,'err'); return null; }
+  cache[cacheKey] = cache[cacheKey].map(x=>x.id===id?data:x);
+  setSyncStatus('ok','online');
+  return data;
+}
+
+async function dbDelete(tabela, id, cacheKey) {
+  setSyncStatus('spin-sync','excluindo...');
+  const { error } = await sb.from(tabela).delete().eq('id',id).eq('user_id',currentUser.id);
+  if (error) { setSyncStatus('err','erro'); toast('Erro: '+error.message,'err'); return false; }
+  cache[cacheKey] = cache[cacheKey].filter(x=>x.id!==id);
+  setSyncStatus('ok','online');
+  return true;
+}
+
 function renderDashboard() {
   const mes=mesAtual();
   const rec=cache.receitas, des=cache.despesas;
@@ -1142,7 +1442,7 @@ function renderDespesas(){
 // ══════════════════════════════════════════════════════
 function salvarTransf(){const id=document.getElementById('t-id').value;const row={id:id||uid(),data:document.getElementById('t-data').value,saiu:document.getElementById('t-saiu').value,entrou:document.getElementById('t-entrou').value,valor:parseFloat(document.getElementById('t-valor').value)||0};if(!row.saiu||!row.entrou||!row.valor){toast('Preencha todos os campos.','err');return;}const idx=cache.transferencias.findIndex(t=>t.id===row.id);if(idx>=0)cache.transferencias[idx]=row;else cache.transferencias.unshift(row);save('transferencias');toast('Transferência salva!');closeModal('m-transf');renderTransf();}
 function excluirTransf(id){if(!confirm('Excluir?'))return;cache.transferencias=cache.transferencias.filter(t=>t.id!==id);save('transferencias');renderTransf();}
-function renderTransf(){populateSelects();let lista=[...cache.transferencias];const mes=document.getElementById('ft-mes').value;if(mes)lista=lista.filter(t=>t.data&&t.data.startsWith(mes));const tb=document.getElementById('transf-body');if(!lista.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px;font-size:11px">Nenhuma transferência</td></tr>';return;}tb.innerHTML=lista.map(t=>`<tr><td>${dFmt(t.data)}</td><td><span class="badge br">${t.saiu}</span></td><td><span class="badge bg">${t.entrou}</span></td><td class="mono" style="text-align:right">${fmt(t.valor)}</td><td><button class="btn btn-xs" style="color:var(--red)" onclick="excluirTransf('${t.id}')">✕</button></td></tr>`).join('');}
+function renderTransf(){populateSelects();let lista=[...cache.transferencias];const mes=document.getElementById('ft-mes').value;if(mes)lista=lista.filter(t=>t.data&&t.data.startsWith(mes));const tb=document.getElementById('transf-body');if(!lista.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px;font-size:11px">Nenhuma transferência</td></tr>';return;}tb.innerHTML=lista.map(t=>`<tr><td>${dFmt(t.data)}</td><td><span class="badge br">${t.banco_saiu}</span></td><td><span class="badge bg">${t.banco_entrou}</span></td><td class="mono" style="text-align:right">${fmt(t.valor)}</td><td><button class="btn btn-xs" style="color:var(--red)" onclick="excluirTransf('${t.id}')">✕</button></td></tr>`).join('');}
 
 // ══════════════════════════════════════════════════════
 // CR / CP
@@ -1465,8 +1765,8 @@ function renderBancos(){
   const tb=document.getElementById('banco-body');
   if(!lista.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px;font-size:11px">Nenhum banco</td></tr>';return;}
   tb.innerHTML=lista.map(b=>{
-    const ent=cache.receitas.filter(r=>r.banco===b.nome).reduce((s,r)=>s+parseFloat(r.valor||0),0)+cache.transferencias.filter(t=>t.entrou===b.nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
-    const sai=cache.despesas.filter(d=>d.banco===b.nome).reduce((s,d)=>s+parseFloat(d.valor||0),0)+cache.transferencias.filter(t=>t.saiu===b.nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+    const ent=cache.receitas.filter(r=>r.banco===b.nome).reduce((s,r)=>s+parseFloat(r.valor||0),0)+cache.transferencias.filter(t=>t.banco_entrou===b.nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
+    const sai=cache.despesas.filter(d=>d.banco===b.nome).reduce((s,d)=>s+parseFloat(d.valor||0),0)+cache.transferencias.filter(t=>t.banco_saiu===b.nome).reduce((s,t)=>s+parseFloat(t.valor||0),0);
     const sal=getSaldoBanco(b.nome);
     return`<tr><td><b>${b.nome}</b> <span class="badge bb" style="margin-left:5px">${b.tipo}</span></td><td class="mono" style="text-align:right">${fmt(b.saldo)}</td><td class="mono" style="text-align:right;color:var(--green)">${fmt(ent)}</td><td class="mono" style="text-align:right;color:var(--red)">${fmt(sai)}</td><td class="mono" style="text-align:right;font-weight:600;color:${sal>=0?'var(--green)':'var(--red)'}">${fmt(sal)}</td></tr>`;
   }).join('');
@@ -1485,38 +1785,388 @@ function exportarDados(){
 }
 
 // ══════════════════════════════════════════════════════
-// INIT
+
 // ══════════════════════════════════════════════════════
-function initDadosPadrao() {
-  if(cache.planos.length===0){
-    const planos=[
-      {id:uid(),codigo:'1.1',nome:'Receita com Produtos',tipo:'Receita',grupo:'Receitas Operacionais'},
-      {id:uid(),codigo:'1.2',nome:'Receita com Serviços',tipo:'Receita',grupo:'Receitas Operacionais'},
-      {id:uid(),codigo:'1.3',nome:'Outras Receitas',tipo:'Receita',grupo:'Receitas'},
-      {id:uid(),codigo:'1.4',nome:'Receitas Financeiras',tipo:'Receita',grupo:'Receitas Financeiras'},
-      {id:uid(),codigo:'2.1',nome:'Custos com Produtos',tipo:'Despesa',grupo:'Custos Operacionais'},
-      {id:uid(),codigo:'2.2',nome:'Custos com Serviços',tipo:'Despesa',grupo:'Custos Operacionais'},
-      {id:uid(),codigo:'2.3',nome:'Despesas Administrativas',tipo:'Despesa',grupo:'Despesas Administrativas'},
-      {id:uid(),codigo:'2.4',nome:'Despesas com Pessoal',tipo:'Despesa',grupo:'Despesas com Pessoal'},
-      {id:uid(),codigo:'2.5',nome:'Despesas Financeiras',tipo:'Despesa',grupo:'Despesas Financeiras'},
-      {id:uid(),codigo:'2.6',nome:'Impostos e Taxas',tipo:'Despesa',grupo:'Impostos'},
-      {id:uid(),codigo:'2.7',nome:'Outras Despesas',tipo:'Despesa',grupo:'Outras Despesas'},
-    ];
-    cache.planos=planos;save('planos');
-  }
+// RECEITAS — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarReceita() {
+  const id = document.getElementById('r-id').value;
+  const row = {
+    data:        document.getElementById('r-data').value || null,
+    documento:   document.getElementById('r-doc').value || null,
+    plano:       document.getElementById('r-plano').value || null,
+    banco:       document.getElementById('r-banco').value || null,
+    tipo:        document.getElementById('r-tipo').value || null,
+    cliente:     document.getElementById('r-cliente').value || null,
+    valor:       parseFloat(document.getElementById('r-valor').value) || 0,
+    parcelas:    parseInt(document.getElementById('r-parcelas').value) || 1,
+    vencimento:  document.getElementById('r-venc').value || null,
+    recebimento: document.getElementById('r-receb').value || null,
+    descricao:   document.getElementById('r-desc').value || null,
+  };
+  if (id) { const r = await dbUpdate('receitas', id, row, 'receitas'); if(r){toast('Receita atualizada!');} }
+  else     { const r = await dbInsert('receitas', row, 'receitas');    if(r){toast('Receita salva!');} }
+  closeModal('m-receita');
+  renderReceitas();
 }
 
-// Inicializa filtros de mês
-document.getElementById('fr-mes').value=mesAtual();
-document.getElementById('fd-mes').value=mesAtual();
-document.getElementById('ft-mes').value=mesAtual();
-document.getElementById('rank-mes').value=mesAtual();
-document.getElementById('mes-display').textContent=new Date().toLocaleString('pt-BR',{month:'long',year:'numeric'});
+async function excluirReceita(id) {
+  if (!confirm('Excluir esta receita?')) return;
+  const ok = await dbDelete('receitas', id, 'receitas');
+  if (ok) { toast('Receita excluída.'); renderReceitas(); }
+}
 
-initDadosPadrao();
-populateSelects();
-setPeriodoDRE('mes');
-renderDashboard();
+async function marcarRecebido(id) {
+  const r = cache.receitas.find(x => x.id === id);
+  if (!r) return;
+  const novaData = r.recebimento ? null : hoje();
+  const upd = await dbUpdate('receitas', id, { recebimento: novaData }, 'receitas');
+  if (upd) { renderReceitas(); renderCR(); }
+}
+
+function editarReceita(id) {
+  const r = cache.receitas.find(x => x.id === id); if (!r) return;
+  document.getElementById('r-id').value       = r.id;
+  document.getElementById('r-data').value     = r.data || '';
+  document.getElementById('r-doc').value      = r.documento || '';
+  document.getElementById('r-plano').value    = r.plano || '';
+  document.getElementById('r-banco').value    = r.banco || '';
+  document.getElementById('r-tipo').value     = r.tipo || 'PIX';
+  document.getElementById('r-cliente').value  = r.cliente || '';
+  document.getElementById('r-valor').value    = r.valor || 0;
+  document.getElementById('r-parcelas').value = r.parcelas || 1;
+  document.getElementById('r-venc').value     = r.vencimento || '';
+  document.getElementById('r-receb').value    = r.recebimento || '';
+  document.getElementById('r-desc').value     = r.descricao || '';
+  document.getElementById('mt-rec').textContent = 'Editar Receita';
+  openModal('m-receita');
+}
+
+// ══════════════════════════════════════════════════════
+// DESPESAS — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarDespesa() {
+  const id = document.getElementById('de-id').value;
+  const row = {
+    data:       document.getElementById('de-data').value || null,
+    documento:  document.getElementById('de-doc').value || null,
+    plano:      document.getElementById('de-plano').value || null,
+    banco:      document.getElementById('de-banco').value || null,
+    tipo:       document.getElementById('de-tipo').value || null,
+    fornecedor: document.getElementById('de-forn').value || null,
+    valor:      parseFloat(document.getElementById('de-valor').value) || 0,
+    parcelas:   parseInt(document.getElementById('de-parcelas').value) || 1,
+    vencimento: document.getElementById('de-venc').value || null,
+    pagamento:  document.getElementById('de-pago').value || null,
+    descricao:  document.getElementById('de-desc').value || null,
+  };
+  if (id) { const r = await dbUpdate('despesas', id, row, 'despesas'); if(r){toast('Despesa atualizada!');} }
+  else     { const r = await dbInsert('despesas', row, 'despesas');    if(r){toast('Despesa salva!');} }
+  closeModal('m-despesa');
+  renderDespesas();
+}
+
+async function excluirDespesa(id) {
+  if (!confirm('Excluir esta despesa?')) return;
+  const ok = await dbDelete('despesas', id, 'despesas');
+  if (ok) { toast('Despesa excluída.'); renderDespesas(); }
+}
+
+async function marcarPago(id) {
+  const d = cache.despesas.find(x => x.id === id);
+  if (!d) return;
+  const novaData = d.pagamento ? null : hoje();
+  const upd = await dbUpdate('despesas', id, { pagamento: novaData }, 'despesas');
+  if (upd) { renderDespesas(); renderCP(); }
+}
+
+function editarDespesa(id) {
+  const d = cache.despesas.find(x => x.id === id); if (!d) return;
+  document.getElementById('de-id').value       = d.id;
+  document.getElementById('de-data').value     = d.data || '';
+  document.getElementById('de-doc').value      = d.documento || '';
+  document.getElementById('de-plano').value    = d.plano || '';
+  document.getElementById('de-banco').value    = d.banco || '';
+  document.getElementById('de-tipo').value     = d.tipo || 'PIX';
+  document.getElementById('de-forn').value     = d.fornecedor || '';
+  document.getElementById('de-valor').value    = d.valor || 0;
+  document.getElementById('de-parcelas').value = d.parcelas || 1;
+  document.getElementById('de-venc').value     = d.vencimento || '';
+  document.getElementById('de-pago').value     = d.pagamento || '';
+  document.getElementById('de-desc').value     = d.descricao || '';
+  document.getElementById('mt-desp').textContent = 'Editar Despesa';
+  openModal('m-despesa');
+}
+
+// ══════════════════════════════════════════════════════
+// TRANSFERÊNCIAS — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarTransf() {
+  const id    = document.getElementById('t-id').value;
+  const row = {
+    data:         document.getElementById('t-data').value || null,
+    banco_saiu:   document.getElementById('t-saiu').value,
+    banco_entrou: document.getElementById('t-entrou').value,
+    valor:        parseFloat(document.getElementById('t-valor').value) || 0,
+  };
+  if (!row.banco_saiu || !row.banco_entrou || !row.valor) { toast('Preencha todos os campos.','err'); return; }
+  if (id) { const r = await dbUpdate('transferencias', id, row, 'transferencias'); if(r){toast('Transferência atualizada!');} }
+  else     { const r = await dbInsert('transferencias', row, 'transferencias');    if(r){toast('Transferência salva!');} }
+  closeModal('m-transf');
+  renderTransf();
+}
+
+async function excluirTransf(id) {
+  if (!confirm('Excluir esta transferência?')) return;
+  const ok = await dbDelete('transferencias', id, 'transferencias');
+  if (ok) { toast('Transferência excluída.'); renderTransf(); }
+}
+
+// ══════════════════════════════════════════════════════
+// CLIENTES — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarCliente() {
+  const id = document.getElementById('c-id').value;
+  const row = {
+    nome:     document.getElementById('c-nome').value,
+    cnpj_cpf: document.getElementById('c-cnpj').value,
+    tipo:     document.getElementById('c-tipo').value,
+    telefone: document.getElementById('c-tel').value,
+    email:    document.getElementById('c-email').value,
+    cidade:   document.getElementById('c-cidade').value,
+    uf:       document.getElementById('c-uf').value,
+    endereco: document.getElementById('c-end').value,
+    contato:  document.getElementById('c-contato').value,
+  };
+  if (!row.nome) { toast('Nome é obrigatório.','err'); return; }
+  if (id) { const r = await dbUpdate('clientes', id, row, 'clientes'); if(r){toast('Cliente atualizado!');} }
+  else     { const r = await dbInsert('clientes', row, 'clientes');    if(r){toast('Cliente salvo!');} }
+  closeModal('m-cliente');
+  renderClientes(); populateSelects();
+}
+
+async function excluirCliente(id) {
+  if (!confirm('Excluir este cliente?')) return;
+  const ok = await dbDelete('clientes', id, 'clientes');
+  if (ok) { toast('Cliente excluído.'); renderClientes(); populateSelects(); }
+}
+
+function editarCliente(id) {
+  const c = cache.clientes.find(x => x.id === id); if (!c) return;
+  document.getElementById('c-id').value      = c.id;
+  document.getElementById('c-nome').value    = c.nome || '';
+  document.getElementById('c-cnpj').value    = c.cnpj_cpf || '';
+  document.getElementById('c-tipo').value    = c.tipo || 'Pessoa Jurídica';
+  document.getElementById('c-tel').value     = c.telefone || '';
+  document.getElementById('c-email').value   = c.email || '';
+  document.getElementById('c-cidade').value  = c.cidade || '';
+  document.getElementById('c-uf').value      = c.uf || '';
+  document.getElementById('c-end').value     = c.endereco || '';
+  document.getElementById('c-contato').value = c.contato || '';
+  openModal('m-cliente');
+}
+
+// ══════════════════════════════════════════════════════
+// FORNECEDORES — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarFornecedor() {
+  const id = document.getElementById('f-id').value;
+  const row = {
+    nome:     document.getElementById('f-nome').value,
+    cnpj_cpf: document.getElementById('f-cnpj').value,
+    tipo:     document.getElementById('f-tipo').value,
+    telefone: document.getElementById('f-tel').value,
+    email:    document.getElementById('f-email').value,
+    cidade:   document.getElementById('f-cidade').value,
+    uf:       document.getElementById('f-uf').value,
+    endereco: document.getElementById('f-end').value,
+    contato:  document.getElementById('f-contato').value,
+  };
+  if (!row.nome) { toast('Nome é obrigatório.','err'); return; }
+  if (id) { const r = await dbUpdate('fornecedores', id, row, 'fornecedores'); if(r){toast('Fornecedor atualizado!');} }
+  else     { const r = await dbInsert('fornecedores', row, 'fornecedores');    if(r){toast('Fornecedor salvo!');} }
+  closeModal('m-fornecedor');
+  renderFornecedores(); populateSelects();
+}
+
+async function excluirFornecedor(id) {
+  if (!confirm('Excluir este fornecedor?')) return;
+  const ok = await dbDelete('fornecedores', id, 'fornecedores');
+  if (ok) { toast('Fornecedor excluído.'); renderFornecedores(); populateSelects(); }
+}
+
+function editarFornecedor(id) {
+  const f = cache.fornecedores.find(x => x.id === id); if (!f) return;
+  document.getElementById('f-id').value      = f.id;
+  document.getElementById('f-nome').value    = f.nome || '';
+  document.getElementById('f-cnpj').value    = f.cnpj_cpf || '';
+  document.getElementById('f-tipo').value    = f.tipo || 'Pessoa Jurídica';
+  document.getElementById('f-tel').value     = f.telefone || '';
+  document.getElementById('f-email').value   = f.email || '';
+  document.getElementById('f-cidade').value  = f.cidade || '';
+  document.getElementById('f-uf').value      = f.uf || '';
+  document.getElementById('f-end').value     = f.endereco || '';
+  document.getElementById('f-contato').value = f.contato || '';
+  openModal('m-fornecedor');
+}
+
+// ══════════════════════════════════════════════════════
+// PLANO DE CONTAS — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarPlano() {
+  const id = document.getElementById('p-id').value;
+  const row = {
+    codigo: document.getElementById('p-cod').value,
+    nome:   document.getElementById('p-nome').value,
+    tipo:   document.getElementById('p-tipo').value,
+    grupo:  document.getElementById('p-grupo').value,
+  };
+  if (!row.nome) { toast('Nome é obrigatório.','err'); return; }
+  if (id) { const r = await dbUpdate('plano_contas', id, row, 'planos'); if(r){toast('Plano atualizado!');} }
+  else     { const r = await dbInsert('plano_contas', row, 'planos');    if(r){toast('Plano salvo!');} }
+  closeModal('m-plano');
+  renderPlanos(); populateSelects();
+}
+
+async function excluirPlano(id) {
+  if (!confirm('Excluir este plano?')) return;
+  const ok = await dbDelete('plano_contas', id, 'planos');
+  if (ok) { toast('Plano excluído.'); renderPlanos(); populateSelects(); }
+}
+
+function editarPlano(id) {
+  const p = cache.planos.find(x => x.id === id); if (!p) return;
+  document.getElementById('p-id').value    = p.id;
+  document.getElementById('p-cod').value   = p.codigo || '';
+  document.getElementById('p-nome').value  = p.nome || '';
+  document.getElementById('p-tipo').value  = p.tipo || 'Receita';
+  document.getElementById('p-grupo').value = p.grupo || '';
+  openModal('m-plano');
+}
+
+// ══════════════════════════════════════════════════════
+// BANCOS — CRUD
+// ══════════════════════════════════════════════════════
+async function salvarBanco() {
+  const id = document.getElementById('b-id').value;
+  const row = {
+    nome:          document.getElementById('b-nome').value,
+    saldo_inicial: parseFloat(document.getElementById('b-saldo').value) || 0,
+    tipo:          document.getElementById('b-tipo').value,
+  };
+  if (!row.nome) { toast('Nome é obrigatório.','err'); return; }
+  if (id) { const r = await dbUpdate('bancos', id, row, 'bancos'); if(r){toast('Banco atualizado!');} }
+  else     { const r = await dbInsert('bancos', row, 'bancos');    if(r){toast('Banco salvo!');} }
+  closeModal('m-banco');
+  renderBancos(); populateSelects();
+}
+
+async function excluirBanco(id) {
+  if (!confirm('Excluir este banco? Os lançamentos vinculados não serão removidos.')) return;
+  const ok = await dbDelete('bancos', id, 'bancos');
+  if (ok) { toast('Banco excluído.'); renderBancos(); populateSelects(); }
+}
+
+function editarBanco(id) {
+  const b = cache.bancos.find(x => x.id === id); if (!b) return;
+  document.getElementById('b-id').value    = b.id;
+  document.getElementById('b-nome').value  = b.nome || '';
+  document.getElementById('b-saldo').value = b.saldo_inicial || 0;
+  document.getElementById('b-tipo').value  = b.tipo || 'Conta Corrente';
+  openModal('m-banco');
+}
+
+// ══════════════════════════════════════════════════════
+// IMPORTAR CSV / OFX — salva no Supabase
+// ══════════════════════════════════════════════════════
+async function importarCSV() {
+  const iD    = parseInt(document.getElementById('col-data').value);
+  const iDesc = parseInt(document.getElementById('col-desc').value);
+  const iV    = parseInt(document.getElementById('col-val').value);
+  const banco = document.getElementById('col-banco').value;
+  const modo  = document.getElementById('col-modo').value;
+  if (isNaN(iD)||isNaN(iDesc)||isNaN(iV)) { toast('Selecione as colunas obrigatórias.','err'); return; }
+  if (!banco) { toast('Selecione o banco destino.','err'); return; }
+
+  const recRows=[], despRows=[];
+  let skip=0;
+  csvData.forEach(row=>{
+    const valStr = (row[iV]||'').replace(',','.').replace(/[^\d.-]/g,'');
+    const valor  = parseFloat(valStr);
+    if (isNaN(valor)||valor===0) { skip++; return; }
+    const data = parseData(row[iD]||'');
+    const base = { data, descricao: row[iDesc]||'', valor: Math.abs(valor), banco, user_id: currentUser.id };
+    const isRec = modo==='receita'||(modo==='auto'&&valor>0);
+    if (isRec) recRows.push({...base, plano:'', cliente:'', tipo:'', vencimento:null, recebimento:null, documento:'', parcelas:1, importado:true});
+    else       despRows.push({...base, plano:'', fornecedor:'', tipo:'', vencimento:null, pagamento:null, documento:'', parcelas:1, importado:true});
+  });
+
+  setSyncStatus('spin-sync','importando...');
+  let recAdded=0, despAdded=0;
+  if (recRows.length)  { const {data,error} = await sb.from('receitas').insert(recRows).select();  if(!error){ cache.receitas=[...(data||[]),...cache.receitas]; recAdded=data?.length||0; } }
+  if (despRows.length) { const {data,error} = await sb.from('despesas').insert(despRows).select(); if(!error){ cache.despesas=[...(data||[]),...cache.despesas]; despAdded=data?.length||0; } }
+
+  // Log importação
+  const hist = { user_id:currentUser.id, arquivo:'arquivo.csv', tipo:'CSV', banco, registros:recAdded+despAdded, receitas:recAdded, despesas:despAdded, ignorados:skip, resultado:`${recAdded} receitas, ${despAdded} despesas, ${skip} ignoradas` };
+  const {data:hd} = await sb.from('import_historico').insert(hist).select().single();
+  if(hd) cache.importHist.unshift(hd);
+
+  setSyncStatus('ok','online');
+  toast('Importado! '+recAdded+' receitas e '+despAdded+' despesas.','ok');
+  resetImport();
+  renderImportHist();
+}
+
+async function importarOFX() {
+  const banco = document.getElementById('ofx-banco').value;
+  const modo  = document.getElementById('ofx-modo').value;
+  if (!banco) { toast('Selecione o banco destino.','err'); return; }
+
+  const recRows=[], despRows=[];
+  ofxData.forEach(t=>{
+    const isCredit = t.trntype==='CREDIT'||t.valor>0;
+    const isRec    = modo==='receita'||(modo==='auto'&&isCredit);
+    const base     = { data:t.data, descricao:t.memo, valor:Math.abs(t.valor), banco, user_id:currentUser.id, importado:true };
+    if (isRec) recRows.push({...base, plano:'', cliente:'', tipo:'', vencimento:null, recebimento:null, documento:'', parcelas:1});
+    else       despRows.push({...base, plano:'', fornecedor:'', tipo:'', vencimento:null, pagamento:null, documento:'', parcelas:1});
+  });
+
+  setSyncStatus('spin-sync','importando...');
+  let recAdded=0, despAdded=0;
+  if (recRows.length)  { const {data,error} = await sb.from('receitas').insert(recRows).select();  if(!error){ cache.receitas=[...(data||[]),...cache.receitas]; recAdded=data?.length||0; } }
+  if (despRows.length) { const {data,error} = await sb.from('despesas').insert(despRows).select(); if(!error){ cache.despesas=[...(data||[]),...cache.despesas]; despAdded=data?.length||0; } }
+
+  const hist = { user_id:currentUser.id, arquivo:'extrato.ofx', tipo:'OFX', banco, registros:recAdded+despAdded, receitas:recAdded, despesas:despAdded, ignorados:0, resultado:`${recAdded} receitas, ${despAdded} despesas` };
+  const {data:hd} = await sb.from('import_historico').insert(hist).select().single();
+  if(hd) cache.importHist.unshift(hd);
+
+  setSyncStatus('ok','online');
+  toast('Importado! '+recAdded+' receitas e '+despAdded+' despesas.','ok');
+  resetImportOFX();
+  renderImportHist();
+}
+
+// ══════════════════════════════════════════════════════
+// EXPORTAR
+// ══════════════════════════════════════════════════════
+function exportarDados() {
+  const d = { exportadoEm: new Date().toISOString(), ...cache };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download = 'fincontrol_pro_'+hoje()+'.json';
+  a.click();
+  toast('Backup exportado!','info');
+}
+
+// ══════════════════════════════════════════════════════
+// INIT — entry point
+// ══════════════════════════════════════════════════════
+// Hide sidebar and main until authenticated
+document.querySelector('.sidebar').style.display = 'none';
+document.querySelector('.main').style.display    = 'none';
+
+init();
+
 </script>
 </body>
 </html>
